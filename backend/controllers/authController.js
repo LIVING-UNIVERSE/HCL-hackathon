@@ -59,31 +59,35 @@ const registerUser = async (req,res)=>{
 
 
 
-// // API to login user
-// const loginUser = async (req, res) => {
+// API to login user
+const loginUser = async (req, res) => {
 
-//     try {
-//         const { email, password } = req.body;
-//         const user = await userModel.findOne({ email })
+    try {
+        const { email, password } = req.body;
+        const user = await userModel.findOne({ email })
 
-//         if (!user) {
-//             return res.json({ success: false, message: "User does not exist" })
-//         }
+        if (!user) {
+            return res.json(
+                { success: false, 
+                  message: "User does not exist",
+                }
+            )
+        }
 
-//         const isMatch = await bcrypt.compare(password, user.password)
+        const isMatch = await bcrypt.compare(password, user.password)
 
-//         if (isMatch) {
-//             const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET)
-//             res.json({ success: true, token })
-//         }
-//         else {
-//             res.json({ success: false, message: "Invalid credentials" })
-//         }
-//     } catch (error) {
-//         console.log(error)
-//         res.json({ success: false, message: error.message })
-//     }
-// }
+        if (isMatch) {
+            const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET)
+            res.json({ success: true, token })
+        }
+        else {
+            res.json({ success: false, message: "Invalid credentials" })
+        }
+    } catch (error) {
+        console.log(error)
+        res.json({ success: false, message: error.message })
+    }
+}
 
 // // API to get user profile data
 // const getProfile = async (req, res) => {
