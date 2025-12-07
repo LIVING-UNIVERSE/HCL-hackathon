@@ -1,23 +1,32 @@
-import React, { useContext, useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { AppContext } from '../context/AppContext'
-import { assets } from '../assets/assets'
-import RelatedDoctors from '../components/RelatedDoctors'
+import { useSelector, useDispatch } from 'react-redux' // 1. Import Redux hooks
+import { fetchDoctorList } from '../features/doctors/doctorSlice' // 2. Import action to refresh data
+// import { assets } from '../assets/assets'
+// import RelatedDoctors from '../components/RelatedDoctors'
 import axios from 'axios'
 import { toast } from 'react-toastify'
 
 const Appointment = () => {
 
     const { docId } = useParams()
-    const { doctors, currencySymbol, backendUrl, token, getDoctosData } = useContext(AppContext)
+    const navigate = useNavigate()
+    const dispatch = useDispatch() // 3. Initialize dispatch
+
+    // 4. Get global state from Redux Store instead of Context
+    const doctors = useSelector((state) => state.doctors.list)
+    const token = useSelector((state) => state.auth.token)
+    
+    // 5. Define static constants locally (or import from a config file)
+    const currencySymbol = '₹'
+    const backendUrl = import.meta.env.VITE_BACKEND_URL
+
     const daysOfWeek = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT']
 
-    const [docInfo, setDocInfo] = useState(false)
+    const [docInfo, setDocInfo] = useState(null) // changed false to null for better type safety
     const [docSlots, setDocSlots] = useState([])
     const [slotIndex, setSlotIndex] = useState(0)
     const [slotTime, setSlotTime] = useState('')
-
-    const navigate = useNavigate()
 
     const fetchDocInfo = async () => {
         const docInfo = doctors.find((doc) => doc._id === docId)
@@ -25,14 +34,12 @@ const Appointment = () => {
     }
 
     const getAvailableSolts = async () => {
-
         setDocSlots([])
 
         // getting current date
         let today = new Date()
 
         for (let i = 0; i < 7; i++) {
-
             // getting date with index 
             let currentDate = new Date(today)
             currentDate.setDate(today.getDate() + i)
@@ -53,7 +60,6 @@ const Appointment = () => {
 
             let timeSlots = [];
 
-
             while (currentDate < endTime) {
                 let formattedTime = currentDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
@@ -67,7 +73,6 @@ const Appointment = () => {
                 const isSlotAvailable = docInfo.slots_booked[slotDate] && docInfo.slots_booked[slotDate].includes(slotTime) ? false : true
 
                 if (isSlotAvailable) {
-
                     // Add slot to array
                     timeSlots.push({
                         datetime: new Date(currentDate),
@@ -80,13 +85,10 @@ const Appointment = () => {
             }
 
             setDocSlots(prev => ([...prev, timeSlots]))
-
         }
-
     }
 
     const bookAppointment = async () => {
-
         if (!token) {
             toast.warning('Login to book appointment')
             return navigate('/login')
@@ -101,11 +103,16 @@ const Appointment = () => {
         const slotDate = day + "_" + month + "_" + year
 
         try {
-
-            const { data } = await axios.post(backendUrl + '/api/user/book-appointment', { docId, slotDate, slotTime }, { headers: { token } })
+            const { data } = await axios.post(
+                backendUrl + '/api/user/book-appointment', 
+                { docId, slotDate, slotTime }, 
+                { headers: { token } }
+            )
+            
             if (data.success) {
                 toast.success(data.message)
-                getDoctosData()
+                // 6. Refresh global doctor data via Redux to update available slots
+                dispatch(fetchDoctorList()) 
                 navigate('/my-appointments')
             } else {
                 toast.error(data.message)
@@ -115,10 +122,10 @@ const Appointment = () => {
             console.log(error)
             toast.error(error.message)
         }
-
     }
 
     useEffect(() => {
+        // Only fetch doc info if doctors list is populated
         if (doctors.length > 0) {
             fetchDocInfo()
         }
@@ -132,7 +139,6 @@ const Appointment = () => {
 
     return docInfo ? (
         <div>
-
             {/* ---------- Doctor Details ----------- */}
             <div className='flex flex-col sm:flex-row gap-4'>
                 <div>
@@ -140,10 +146,10 @@ const Appointment = () => {
                 </div>
 
                 <div className='flex-1 border border-[#ADADAD] rounded-lg p-8 py-7 bg-white mx-2 sm:mx-0 mt-[-80px] sm:mt-0'>
-
                     {/* ----- Doc Info : name, degree, experience ----- */}
-
-                    <p className='flex items-center gap-2 text-3xl font-medium text-gray-700'>{docInfo.name} <img className='w-5' src={assets.verified_icon} alt="" /></p>
+                    <p className='flex items-center gap-2 text-3xl font-medium text-gray-700'>{docInfo.name} 
+                        {/* <img className='w-5' src={assets.verified_icon} alt="" /> */}
+                    </p>
                     <div className='flex items-center gap-2 mt-1 text-gray-600'>
                         <p>{docInfo.degree} - {docInfo.speciality}</p>
                         <button className='py-0.5 px-2 border text-xs rounded-full'>{docInfo.experience} Years</button>
@@ -151,7 +157,9 @@ const Appointment = () => {
 
                     {/* ----- Doc About ----- */}
                     <div>
-                        <p className='flex items-center gap-1 text-sm font-medium text-[#262626] mt-3'>About <img className='w-3' src={assets.info_icon} alt="" /></p>
+                        <p className='flex items-center gap-1 text-sm font-medium text-[#262626] mt-3'>About 
+                           {/* <img className='w-3' src={assets.info_icon} alt="" /> */}
+                        </p>
                         <p className='text-sm text-gray-600 max-w-[700px] mt-1'>{docInfo.about}</p>
                     </div>
 
@@ -173,15 +181,15 @@ const Appointment = () => {
 
                 <div className='flex items-center gap-3 w-full overflow-x-scroll mt-4'>
                     {docSlots.length && docSlots[slotIndex].map((item, index) => (
-                        <p onClick={() => setSlotTime(item.time)} key={index} className={`text-sm font-light  flex-shrink-0 px-5 py-2 rounded-full cursor-pointer ${item.time === slotTime ? 'bg-primary text-white' : 'text-[#949494] border border-[#B4B4B4]'}`}>{item.time.toLowerCase()}</p>
+                        <p onClick={() => setSlotTime(item.time)} key={index} className={`text-sm font-light flex-shrink-0 px-5 py-2 rounded-full cursor-pointer ${item.time === slotTime ? 'bg-primary text-white' : 'text-[#949494] border border-[#B4B4B4]'}`}>{item.time.toLowerCase()}</p>
                     ))}
                 </div>
 
                 <button onClick={bookAppointment} className='bg-primary text-white text-sm font-light px-20 py-3 rounded-full my-6'>Book an appointment</button>
             </div>
 
-            {/* Listing Releated Doctors */}
-            <RelatedDoctors speciality={docInfo.speciality} docId={docId} />
+            {/* Listing Related Doctors */}
+            {/* <RelatedDoctors speciality={docInfo.speciality} docId={docId} /> */}
         </div>
     ) : null
 }
