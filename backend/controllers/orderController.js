@@ -1,7 +1,7 @@
 import orderModel from "../models/orderModel.js";
 import userModel from "../models/userModel.js";
 import itemModel from "../models/itemModel.js";
-
+import { sendOrderConfirmationEmail } from "../uitls/emailService.js";
 // Place new order
 const placeOrder = async (req, res) => {
     try {
@@ -51,8 +51,46 @@ const placeOrder = async (req, res) => {
         const newOrder = new orderModel(orderData);
         await newOrder.save();
 
-        res.json({ success: true, message: "Order placed successfully", orderId: newOrder._id });
+        // Populate the order with item details for better response
+        const populatedOrder = await orderModel.findById(newOrder._id)
+            .populate('userId', 'name email')
+            .populate('items.itemId', 'name image');
 
+        // Send order confirmation email (non-blocking)
+        try {
+            const user = await userModel.findById(userId);
+            if (user && user.email) {
+                const orderDetails = {
+                    orderId: newOrder._id.toString(),
+                    items: newOrder.items,
+                    totalAmount: newOrder.totalAmount,
+                    address: newOrder.address,
+                    phone: newOrder.phone,
+                    paymentMethod: newOrder.paymentMethod,
+                    status: newOrder.status,
+                };
+                // Send email asynchronously (don't wait for it)
+                sendOrderConfirmationEmail(user.email, user.name, orderDetails)
+                    .then(result => {
+                        if (result.success) {
+                            console.log('Order confirmation email sent successfully to:', user.email);
+                        } else {
+                            console.error('Email sending failed:', result.error);
+                        }
+                    })
+                    .catch(err => console.error('Email sending error:', err));
+            }
+        } catch (emailError) {
+            // Log error but don't fail the order
+            console.error('Error preparing email:', emailError);
+        }
+
+        res.json({ 
+            success: true, 
+            message: "Order placed successfully", 
+            orderId: newOrder._id,
+            order: populatedOrder
+        });
     } catch (error) {
         console.log(error);
         res.json({ success: false, message: error.message });

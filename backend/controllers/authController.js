@@ -7,29 +7,29 @@ import userModel from "../models/userModel.js";
 
 // API to register users
 
-const registerUser = async (req,res)=>{
+const registerUser = async (req, res) => {
     try {
 
         const { name, email, password, phone, addressLine1, addressLine2, address } = req.body;
 
         if(!name || !email || !password){
             return res.json({
-                success:"false",
-                message: "missing details",
+                success: false,
+                message: "Missing details",
             })
         }
 
         if(!validator.isEmail(email)){
-            res.send({
-                success:"false",
-                message:"Please enter correct email!",
+            return res.json({
+                success: false,
+                message: "Please enter correct email!",
             })
         }
 
-        if(password.length <8){
-            res.send({
-                success:"false",
-                message:"Please enter a strong password!",
+        if(password.length < 8){
+            return res.json({
+                success: false,
+                message: "Please enter a strong password (minimum 8 characters)!",
             })
         }
 
@@ -55,17 +55,35 @@ const registerUser = async (req,res)=>{
             userData.address = addressPayload;
         }
 
+        // Check if user already exists
+        const existingUser = await userModel.findOne({ email })
+        if (existingUser) {
+            return res.json({
+                success: false,
+                message: "User with this email already exists",
+            })
+        }
+
         const newUser = new userModel(userData)
         const user = await newUser.save()
         const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET)
 
-        res.json({ success: true, token })
+        res.json({ success: true, token, message: "User registered successfully" })
         
     } catch (error) {
         console.log(error);
-        res.send({
-            success:"false",
-            message:error.message,
+        
+        // Handle duplicate email error
+        if (error.code === 11000 || error.message.includes('duplicate')) {
+            return res.json({
+                success: false,
+                message: "User with this email already exists",
+            })
+        }
+        
+        res.json({
+            success: false,
+            message: error.message || "Registration failed",
         })
     }
 }
@@ -91,7 +109,7 @@ const loginUser = async (req, res) => {
 
         if (isMatch) {
             const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET)
-            res.json({ success: true, token })
+            res.json({ success: true, token, role: user.role || 'user' })
         }
         else {
             res.json({ success: false, message: "Invalid credentials" })
@@ -108,7 +126,11 @@ const getProfile = async (req, res) => {
         const userId = req.userId;
         const userData = await userModel.findById(userId).select('-password');
 
-        res.json({ success: true, userData })
+        if (!userData) {
+            return res.json({ success: false, message: "User not found" })
+        }
+
+        res.json({ success: true, userData: userData })
 
     } catch (error) {
         console.log(error)

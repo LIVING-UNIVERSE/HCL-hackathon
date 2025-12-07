@@ -6,17 +6,65 @@ export const AppContext = createContext()
 
 const AppContextProvider = (props) => {
 
-    const backendUrl = import.meta.env.VITE_BACKEND_URL
+    // Normalize backend URL - remove trailing slash if present
+    const rawBackendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000'
+    const backendUrl = rawBackendUrl.endsWith('/') ? rawBackendUrl.slice(0, -1) : rawBackendUrl
 
     const [token, setToken] = useState(localStorage.getItem('token') ? localStorage.getItem('token') : '')
-    const [userData, setUserData] = useState(false)
+    const [userData, setUserData] = useState(null)
+    const [isAdmin, setIsAdmin] = useState(false)
 
+    // Log backend URL for debugging
+    useEffect(() => {
+        console.log('Backend URL:', backendUrl)
+        if (!import.meta.env.VITE_BACKEND_URL) {
+            console.warn('VITE_BACKEND_URL is not set in environment variables. Using default: http://localhost:4000')
+        }
+    }, [backendUrl])
 
+    // Fetch user data when token changes
+    useEffect(() => {
+        const fetchUserData = async () => {
+            if (token && backendUrl) {
+                try {
+                    const { data } = await axios.get(
+                        `${backendUrl}/api/user/profile`,
+                        { headers: { token } }
+                    )
+                    if (data.success && data.userData) {
+                        setUserData(data.userData)
+                        setIsAdmin(data.userData?.role === 'admin')
+                    } else {
+                        // Invalid token or user not found
+                        setUserData(null)
+                        setIsAdmin(false)
+                    }
+                } catch (error) {
+                    console.error('Error fetching user data:', error)
+                    setUserData(null)
+                    setIsAdmin(false)
+                    // Clear invalid token on authentication errors
+                    if (error.response?.status === 401 || error.response?.status === 403) {
+                        localStorage.removeItem('token')
+                        // Use a callback to avoid dependency issue
+                        if (token) {
+                            setToken('')
+                        }
+                    }
+                }
+            } else {
+                setUserData(null)
+                setIsAdmin(false)
+            }
+        }
+        fetchUserData()
+    }, [token, backendUrl])
 
     const value = {
         backendUrl,
         token, setToken,
-        userData, setUserData
+        userData, setUserData,
+        isAdmin
     }
 
     return (

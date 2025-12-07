@@ -4,50 +4,6 @@ import { AppContext } from '../context/AppContext'
 import axios from 'axios'
 import { toast } from 'react-toastify'
 
-// Default items to add to cart
-const defaultCartItems = [
-    {
-        _id: '1',
-        item_name: 'Margherita Pizza',
-        category: 'Pizza',
-        price: 299,
-        quantity: 2,
-        inventory_count: 50,
-        description: 'Classic Italian pizza with fresh mozzarella, tomato sauce, and basil leaves',
-        image_url: 'https://images.unsplash.com/photo-1574071318508-1cdbab80d002?w=400&h=400&fit=crop'
-    },
-    {
-        _id: '2',
-        item_name: 'Chicken Burger',
-        category: 'Burgers',
-        price: 189,
-        quantity: 1,
-        inventory_count: 30,
-        description: 'Juicy grilled chicken patty with fresh vegetables and special sauce',
-        image_url: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400&h=400&fit=crop'
-    },
-    {
-        _id: '3',
-        item_name: 'Chocolate Milkshake',
-        category: 'Beverages',
-        price: 149,
-        quantity: 2,
-        inventory_count: 40,
-        description: 'Rich and creamy chocolate milkshake topped with whipped cream',
-        image_url: 'https://images.unsplash.com/photo-1572490122747-3968b75cc699?w=400&h=400&fit=crop'
-    },
-    {
-        _id: '4',
-        item_name: 'Caesar Salad',
-        category: 'Salads',
-        price: 229,
-        quantity: 1,
-        inventory_count: 25,
-        description: 'Fresh romaine lettuce with Caesar dressing, croutons, and parmesan cheese',
-        image_url: 'https://images.unsplash.com/photo-1546793665-c74683f339c1?w=400&h=400&fit=crop'
-    }
-]
-
 const Cart = () => {
     const navigate = useNavigate()
     const { backendUrl, token } = useContext(AppContext)
@@ -55,6 +11,7 @@ const Cart = () => {
     const [cartItems, setCartItems] = useState([])
     const [diningOption, setDiningOption] = useState('dine-in')
     const [loading, setLoading] = useState(false)
+    const [placedOrder, setPlacedOrder] = useState(null)
 
     // Load cart from localStorage on component mount
     useEffect(() => {
@@ -65,16 +22,16 @@ const Cart = () => {
                 if (parsedCart.length > 0) {
                     setCartItems(parsedCart)
                 } else {
-                    // If cart is empty, add default items
-                    setCartItems(defaultCartItems)
+                    // Cart is empty, set to empty array
+                    setCartItems([])
                 }
             } catch (error) {
                 console.error('Error loading cart:', error)
-                setCartItems(defaultCartItems)
+                setCartItems([])
             }
         } else {
-            // If no cart exists, initialize with default items
-            setCartItems(defaultCartItems)
+            // If no cart exists, start with empty cart
+            setCartItems([])
         }
     }, [])
 
@@ -131,35 +88,198 @@ const Cart = () => {
 
         setLoading(true)
         try {
-            const orderData = {
-                items: cartItems.map(item => ({
-                    item_id: item._id,
-                    quantity: item.quantity
-                })),
-                total_price: calculateTotal(),
-                dining_option: diningOption
+            // Transform cart items to match backend order model format
+            const orderItems = cartItems.map(item => ({
+                itemId: item._id,
+                name: item.item_name,
+                price: item.price,
+                quantity: item.quantity
+            }))
+
+            // Use dummy phone and address
+            const dummyPhone = '+91 9876543210'
+            const dummyAddress = {
+                line1: '123 Main Street',
+                line2: 'Apartment 4B'
             }
 
+            const orderData = {
+                items: orderItems,
+                totalAmount: calculateTotal(),
+                address: dummyAddress,
+                phone: dummyPhone,
+                paymentMethod: 'COD' // Default to Cash on Delivery
+            }
+
+            console.log('Placing order with data:', orderData)
+
             const { data } = await axios.post(
-                `${backendUrl}/api/user/place-order`,
+                `${backendUrl}/api/order/place`,
                 orderData,
                 { headers: { token } }
             )
             
             if (data.success) {
                 toast.success('Order placed successfully!')
+                
+                // Use order from backend response if available, otherwise create order object
+                const orderDetails = data.order ? {
+                    orderId: data.order._id || data.orderId,
+                    items: data.order.items || orderItems,
+                    totalAmount: data.order.totalAmount || calculateTotal(),
+                    address: data.order.address || dummyAddress,
+                    phone: data.order.phone || dummyPhone,
+                    paymentMethod: data.order.paymentMethod || 'COD',
+                    status: data.order.status || 'Order Placed',
+                    createdAt: data.order.createdAt || new Date().toISOString()
+                } : {
+                    orderId: data.orderId,
+                    items: orderItems,
+                    totalAmount: calculateTotal(),
+                    address: dummyAddress,
+                    phone: dummyPhone,
+                    paymentMethod: 'COD',
+                    status: 'Order Placed',
+                    createdAt: new Date().toISOString()
+                }
+                
+                setPlacedOrder(orderDetails)
                 setCartItems([])
                 localStorage.removeItem('cart')
-                navigate('/')
             } else {
                 toast.error(data.message || 'Failed to place order')
             }
         } catch (error) {
             console.error('Error placing order:', error)
-            toast.error(error.response?.data?.message || 'Failed to place order. Please try again.')
+            console.error('Error response:', error.response?.data)
+            const errorMessage = error.response?.data?.message || error.message || 'Failed to place order. Please try again.'
+            toast.error(errorMessage)
         } finally {
             setLoading(false)
         }
+    }
+
+    // Handle continue shopping after order placement
+    const handleContinueShopping = () => {
+        setPlacedOrder(null)
+        navigate('/menu')
+    }
+
+    // Show order confirmation card if order is placed
+    if (placedOrder) {
+        return (
+            <div className="min-h-[80vh] py-8 flex items-center justify-center">
+                <div className="max-w-2xl w-full">
+                    <div className="bg-white rounded-lg shadow-xl border border-gray-200 p-8">
+                        {/* Success Icon */}
+                        <div className="text-center mb-6">
+                            <div className="inline-flex items-center justify-center w-20 h-20 bg-green-100 rounded-full mb-4">
+                                <svg className="w-12 h-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                </svg>
+                            </div>
+                            <h2 className="text-3xl font-bold text-gray-800 mb-2">Order Placed Successfully!</h2>
+                            <p className="text-gray-600">Your order has been confirmed and will be processed soon.</p>
+                        </div>
+
+                        {/* Order Details Card */}
+                        <div className="bg-gray-50 rounded-lg p-6 mb-6">
+                            <h3 className="text-xl font-bold text-gray-800 mb-4">Order Details</h3>
+                            
+                            {/* Order ID */}
+                            <div className="mb-4 pb-4 border-b border-gray-200">
+                                <p className="text-sm text-gray-600 mb-1">Order ID</p>
+                                <p className="text-lg font-semibold text-gray-800">#{placedOrder.orderId}</p>
+                            </div>
+
+                            {/* Order Items */}
+                            <div className="mb-4 pb-4 border-b border-gray-200">
+                                <p className="text-sm text-gray-600 mb-2">Items Ordered</p>
+                                <div className="space-y-2">
+                                    {placedOrder.items.map((item, index) => (
+                                        <div key={index} className="flex justify-between items-center">
+                                            <span className="text-gray-800">
+                                                {item.name} × {item.quantity}
+                                            </span>
+                                            <span className="text-gray-600 font-medium">
+                                                ₹{item.price * item.quantity}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Delivery Address */}
+                            <div className="mb-4 pb-4 border-b border-gray-200">
+                                <p className="text-sm text-gray-600 mb-1">Delivery Address</p>
+                                <p className="text-gray-800">{placedOrder.address.line1}</p>
+                                {placedOrder.address.line2 && (
+                                    <p className="text-gray-800">{placedOrder.address.line2}</p>
+                                )}
+                            </div>
+
+                            {/* Contact */}
+                            <div className="mb-4 pb-4 border-b border-gray-200">
+                                <p className="text-sm text-gray-600 mb-1">Contact Number</p>
+                                <p className="text-gray-800">{placedOrder.phone}</p>
+                            </div>
+
+                            {/* Payment Method */}
+                            <div className="mb-4 pb-4 border-b border-gray-200">
+                                <p className="text-sm text-gray-600 mb-1">Payment Method</p>
+                                <p className="text-gray-800">{placedOrder.paymentMethod}</p>
+                            </div>
+
+                            {/* Order Status */}
+                            <div className="mb-4 pb-4 border-b border-gray-200">
+                                <p className="text-sm text-gray-600 mb-1">Status</p>
+                                <span className="inline-block px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-semibold">
+                                    {placedOrder.status}
+                                </span>
+                            </div>
+
+                            {/* Order Date */}
+                            {placedOrder.createdAt && (
+                                <div className="mb-4 pb-4 border-b border-gray-200">
+                                    <p className="text-sm text-gray-600 mb-1">Order Date</p>
+                                    <p className="text-gray-800">
+                                        {new Date(placedOrder.createdAt).toLocaleString('en-IN', {
+                                            year: 'numeric',
+                                            month: 'long',
+                                            day: 'numeric',
+                                            hour: '2-digit',
+                                            minute: '2-digit'
+                                        })}
+                                    </p>
+                                </div>
+                            )}
+
+                            {/* Total Amount */}
+                            <div className="flex justify-between items-center">
+                                <p className="text-lg font-semibold text-gray-800">Total Amount</p>
+                                <p className="text-2xl font-bold text-primary">₹{placedOrder.totalAmount.toFixed(2)}</p>
+                            </div>
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="flex gap-4">
+                            <button
+                                onClick={handleContinueShopping}
+                                className="flex-1 bg-primary text-white py-3 rounded-lg font-semibold hover:opacity-90 transition"
+                            >
+                                Continue Shopping
+                            </button>
+                            <button
+                                onClick={() => navigate('/')}
+                                className="flex-1 border border-gray-300 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-50 transition"
+                            >
+                                Go to Home
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        )
     }
 
     if (cartItems.length === 0) {
@@ -170,7 +290,7 @@ const Cart = () => {
                     <h2 className="text-2xl font-bold text-gray-800 mb-2">Your cart is empty</h2>
                     <p className="text-gray-600 mb-6">Add some items to your cart to continue shopping</p>
                     <button
-                        onClick={() => navigate('/')}
+                        onClick={() => navigate('/menu')}
                         className="bg-primary text-white px-6 py-3 rounded-lg font-semibold hover:opacity-90 transition"
                     >
                         Continue Shopping
@@ -263,7 +383,7 @@ const Cart = () => {
                             </div>
                         ))}
                     </div>
-                </div>
+                    </div>
 
                 {/* Order Summary */}
                 <div className="w-full lg:w-96">

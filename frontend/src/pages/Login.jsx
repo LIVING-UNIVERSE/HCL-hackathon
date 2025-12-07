@@ -20,30 +20,61 @@ const Login = () => {
   const onSubmitHandler = async (event) => {
     event.preventDefault();
 
-    if (state === 'Sign Up') {
-
-      const { data } = await axios.post(backendUrl + '/api/user/register', { name, email, password })
-
-      if (data.success) {
-        localStorage.setItem('token', data.token)
-        setToken(data.token)
-      } else {
-        toast.error(data.message)
-      }
-
-    } else {
-
-      const { data } = await axios.post(backendUrl + '/api/user/login', { email, password })
-
-      if (data.success) {
-        localStorage.setItem('token', data.token)
-        setToken(data.token)
-      } else {
-        toast.error(data.message)
-      }
-
+    // Check if backendUrl is set
+    if (!backendUrl) {
+      toast.error('Backend URL is not configured. Please check your environment variables.')
+      console.error('Backend URL is undefined. VITE_BACKEND_URL:', import.meta.env.VITE_BACKEND_URL)
+      return
     }
 
+    try {
+      if (state === 'Sign Up') {
+        const url = `${backendUrl}/api/user/register`
+        console.log('Registering user at:', url)
+        const { data } = await axios.post(url, { name, email, password })
+
+        if (data.success) {
+          localStorage.setItem('token', data.token)
+          setToken(data.token)
+          toast.success('Account created successfully!')
+          // Clear form
+          setName('')
+          setEmail('')
+          setPassword('')
+          // Role will be fetched automatically by AppContext useEffect
+        } else {
+          toast.error(data.message || 'Registration failed')
+        }
+      } else {
+        const url = `${backendUrl}/api/user/login`
+        console.log('Logging in at:', url)
+        const { data } = await axios.post(url, { email, password })
+
+        if (data.success) {
+          localStorage.setItem('token', data.token)
+          setToken(data.token)
+          toast.success('Login successful!')
+          // Clear form
+          setEmail('')
+          setPassword('')
+          // Role will be fetched automatically by AppContext useEffect
+        } else {
+          toast.error(data.message || 'Login failed')
+        }
+      }
+    } catch (error) {
+      console.error('Auth error:', error)
+      console.error('Request URL:', error.config?.url)
+      console.error('Response status:', error.response?.status)
+      console.error('Response data:', error.response?.data)
+      
+      if (error.response?.status === 404) {
+        toast.error(`API endpoint not found. Please check if backend is running at ${backendUrl}`)
+      } else {
+        const errorMessage = error.response?.data?.message || error.message || 'An error occurred. Please try again.'
+        toast.error(errorMessage)
+      }
+    }
   }
 
   useEffect(() => {
