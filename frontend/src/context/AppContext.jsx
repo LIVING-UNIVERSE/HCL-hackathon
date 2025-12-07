@@ -105,6 +105,7 @@ const AppContextProvider = (props) => {
     const [isAdmin, setIsAdmin] = useState(false);
     const [isBackendWorking, setIsBackendWorking] = useState(true);
 
+
     // 🔥 Check if backend is alive
     useEffect(() => {
         const checkBackendIsWorking = async () => {
@@ -151,6 +152,30 @@ const AppContextProvider = (props) => {
 
         fetchUserData();
     }, [token, backendUrl]);
+    const loadUserProfileData = async () => {
+
+        try {
+
+            const { data } = await axios.get(backendUrl + '/api/user/get-profile', { headers: { token } })
+
+            if (data.success) {
+                setUserData(data.userData)
+            } else {
+                toast.error(data.message)
+            }
+
+        } catch (error) {
+            console.log(error)
+            toast.error(error.message)
+        }
+
+    }
+
+    useEffect(() => {
+        if (token) {
+            loadUserProfileData()
+        }
+    }, [token])
 
     const value = {
         backendUrl,
