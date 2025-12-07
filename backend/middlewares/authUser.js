@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import jwt from 'jsonwebtoken';
 
 
@@ -30,6 +31,26 @@ const authUser = async (req, res, next) => {
       message: `Error occured in authUser function: ${error?.message || error}`,
     });
   }
+=======
+import jwt from "jsonwebtoken";
+
+const authUser = async (req, res, next) => {
+    try {
+        const { token } = req.headers;
+        
+        if (!token) {
+            return res.json({ success: false, message: "Not Authorized. Please login again" });
+        }
+
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        req.userId = decoded.userId;
+        next();
+
+    } catch (error) {
+        console.log(error);
+        res.json({ success: false, message: error.message });
+    }
+>>>>>>> 9230d90d112e286ef899c28b668eff58b767a380
 };
 
 export default authUser;
