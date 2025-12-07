@@ -11,7 +11,30 @@ const AppContextProvider = (props) => {
     const [token, setToken] = useState(localStorage.getItem('token') ? localStorage.getItem('token') : '')
     const [userData, setUserData] = useState(false)
 
+    const loadUserProfileData = async () => {
 
+        try {
+
+            const { data } = await axios.get(backendUrl + '/api/user/get-profile', { headers: { token } })
+
+            if (data.success) {
+                setUserData(data.userData)
+            } else {
+                toast.error(data.message)
+            }
+
+        } catch (error) {
+            console.log(error)
+            toast.error(error.message)
+        }
+
+    }
+
+    useEffect(() => {
+        if (token) {
+            loadUserProfileData()
+        }
+    }, [token])
 
     const value = {
         backendUrl,
