@@ -11,11 +11,11 @@ const AppContextProvider = (props) => {
     const [token, setToken] = useState(localStorage.getItem('token') ? localStorage.getItem('token') : '')
     const [userData, setUserData] = useState(false)
 
-    useEffect(() => {
-        if (token) {
-            // load user data
-        }
-    }, [token])
+    // useEffect(() => {
+    //     if (token) {
+    //         // load user data
+    //     }
+    // }, [token])
 
     const value = {
         backendUrl,
