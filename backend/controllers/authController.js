@@ -10,7 +10,7 @@ import userModel from "../models/userModel";
 const registerUser = async (req,res)=>{
     try {
 
-        const {name ,email, password} = req.body;
+        const { name, email, password, phone, addressLine1, addressLine2, address } = req.body;
 
         if(!name || !email || !password){
             return res.json({
@@ -36,10 +36,23 @@ const registerUser = async (req,res)=>{
         const salt = await bcrypt.genSalt(10); 
         const hashedPassword = await bcrypt.hash(password, salt);
 
+        const addressPayload = {
+            line1: address?.line1 ?? addressLine1,
+            line2: address?.line2 ?? addressLine2,
+        }
+
         const userData ={
             name,
             email,
             password:hashedPassword,
+        }
+
+        if (phone) {
+            userData.phone = phone;
+        }
+
+        if (addressPayload.line1 || addressPayload.line2) {
+            userData.address = addressPayload;
         }
 
         const newUser = new userModel(userData)
