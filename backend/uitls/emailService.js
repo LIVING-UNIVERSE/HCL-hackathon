@@ -2,9 +2,9 @@ import nodemailer from 'nodemailer';
 
 // Create transporter with SMTP configuration
 const createTransporter = () => {
-    if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
-        throw new Error('SMTP credentials not configured. Please set SMTP_USER and SMTP_PASS environment variables.');
-    }
+    // if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    //     throw new Error('SMTP credentials not configured. Please set SMTP_USER and SMTP_PASS environment variables.');
+    // }
     
     return nodemailer.createTransport({
         host: process.env.SMTP_HOST || 'smtp.gmail.com',

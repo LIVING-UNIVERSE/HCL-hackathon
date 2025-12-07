@@ -17,10 +17,13 @@ import AdminPanel from './pages/AdminPanel'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
 
+import ErrorBanner from './components/ErrorBanner'
+
 const App = () => {
   return (
     <div>
       <Navbar />
+    
       <div className='mx-4 sm:mx-[10%]' >
         <ToastContainer/>
         <Routes>

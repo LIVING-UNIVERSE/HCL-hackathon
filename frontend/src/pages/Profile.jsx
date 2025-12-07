@@ -7,7 +7,7 @@ import { toast } from 'react-toastify'
 const Profile = () => {
     const navigate = useNavigate()
     const { backendUrl, token, userData: contextUserData, setUserData: setContextUserData } = useContext(AppContext)
-    const [editMode, setEditMode] = useState(false)
+    const  [editMode, setEditMode] = useState(false)
     
     // Use dummy data if user data is missing phone or address
     const userData = contextUserData ? {
