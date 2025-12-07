@@ -4,6 +4,7 @@ import { useSelector, useDispatch } from 'react-redux' // 1. Import Redux hooks
 import { fetchDoctorList } from '../features/doctors/doctorSlice' // 2. Import action to refresh data
 // import { assets } from '../assets/assets'
 // import RelatedDoctors from '../components/RelatedDoctors'
+//lol
 import axios from 'axios'
 import { toast } from 'react-toastify'
 
